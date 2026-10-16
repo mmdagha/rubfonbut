@@ -2,16 +2,15 @@ import { sendMessage, makeInlineKeypad } from "../utils/api.js";
 import { addScore, formatLeaderboard } from "../store/scores.js";
 import words from "../data/words.json" with { type: "json" };
 
-const activeGames = new Map(); // chatId -> { word, hint, masked }
+const activeGames = new Map();
 
 export function getGuessMenu() {
   return makeInlineKeypad([
     [
       { id: "guess_new", text: "کلمه جدید 🔄" },
-      { id: "guess_hint", text: "راهنمایی 💡" }
+      { id: "guess_end", text: "پایان بازی + رتبه 🏁" }
     ],
     [
-      { id: "guess_end", text: "پایان بازی + رتبه 🏁" },
       { id: "back_menu", text: "بازگشت به منو 🔙" }
     ]
   ]);
@@ -23,9 +22,7 @@ export async function startGuessGame(chatId) {
 
   activeGames.set(chatId, {
     word: item.word.toLowerCase(),
-    original: item.word,
-    hint: item.hint,
-    masked
+    original: item.word
   });
 
   await sendMessage(
@@ -54,24 +51,13 @@ export async function handleGuessMessage(chatId, userId, userName, text) {
   return false;
 }
 
-export async function giveHint(chatId) {
-  const game = activeGames.get(chatId);
-  if (!game) {
-    await sendMessage(chatId, "هیچ بازی فعالی وجود نداره. اول «کلمه جدید» رو بزن.", getGuessMenu());
-    return;
-  }
-  await sendMessage(chatId, `💡 راهنمایی بیشتر: ${game.hint}`, getGuessMenu());
-}
-
 export async function endGuessGame(chatId) {
-  const hadGame = activeGames.has(chatId);
   activeGames.delete(chatId);
-
-  const text = hadGame
-    ? `بازی تموم شد!\n\n${formatLeaderboard(chatId)}`
-    : `بازی فعالی نبود.\n\n${formatLeaderboard(chatId)}`;
-
-  await sendMessage(chatId, text, getGuessMenu());
+  await sendMessage(
+    chatId,
+    `بازی تموم شد!\n\n${formatLeaderboard(chatId)}`,
+    getGuessMenu()
+  );
 }
 
 export function isGuessActive(chatId) {

@@ -15,13 +15,8 @@ export async function api(method, body = {}) {
 }
 
 export async function sendMessage(chatId, text, inlineKeypad = null) {
-  const body = {
-    chat_id: chatId,
-    text: text
-  };
-  if (inlineKeypad) {
-    body.inline_keypad = inlineKeypad;
-  }
+  const body = { chat_id: chatId, text };
+  if (inlineKeypad) body.inline_keypad = inlineKeypad;
   return api("sendMessage", body);
 }
 
@@ -35,8 +30,4 @@ export function makeInlineKeypad(rows) {
       }))
     }))
   };
-}
-
-export async function getChat(chatId) {
-  return api("getChat", { chat_id: chatId });
 }

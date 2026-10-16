@@ -1,4 +1,4 @@
-const scores = new Map(); // chatId -> Map<userId, {name, score}>
+const scores = new Map();
 
 export function addScore(chatId, userId, name, points = 1) {
   if (!scores.has(chatId)) scores.set(chatId, new Map());
@@ -30,8 +30,4 @@ export function formatLeaderboard(chatId) {
     text += `${medal} ${item.name} → **${item.score}** امتیاز\n`;
   });
   return text;
-}
-
-export function resetChatScores(chatId) {
-  scores.delete(chatId);
 }

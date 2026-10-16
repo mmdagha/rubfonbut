@@ -5,17 +5,10 @@ export function getMainMenu() {
   return makeInlineKeypad([
     [
       { id: "game_tod", text: "حقیقت یا جرات 🔥" },
-      { id: "game_wyr", text: "ترجیح می‌دادی؟ 🤔" }
-    ],
-    [
-      { id: "game_rps", text: "سنگ کاغذ قیچی ✊" },
       { id: "game_guess", text: "حدس کلمه 🔤" }
     ],
     [
-      { id: "game_joke", text: "جوک تصادفی 😂" },
-      { id: "leaderboard", text: "رتبه‌بندی 🏆" }
-    ],
-    [
+      { id: "leaderboard", text: "رتبه‌بندی 🏆" },
       { id: "close", text: "بستن منو ❌" }
     ]
   ]);
@@ -24,7 +17,7 @@ export function getMainMenu() {
 export async function showMainMenu(chatId) {
   await sendMessage(
     chatId,
-    "سلام! 👋 به ربات سرگرمی خوش اومدی 🎮\n\nیکی از بازی‌ها یا امکانات زیر رو انتخاب کن:",
+    "سلام! 👋 به ربات سرگرمی خوش اومدی 🎮\n\nفقط داخل گروه کار می‌کنه.\nیکی از بازی‌ها رو انتخاب کن:",
     getMainMenu()
   );
 }

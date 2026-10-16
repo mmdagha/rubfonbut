@@ -1,20 +1,13 @@
 {
   "name": "rubika-fun-bot",
-  "version": "1.0.0",
-  "description": "ربات سرگرمی پیشرفته روبیکا با چند بازی و سیستم امتیاز",
+  "version": "2.0.0",
+  "description": "ربات سرگرمی روبیکا - حقیقت یا جرات + حدس کلمه (فقط گروه)",
   "type": "module",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
   },
-  "keywords": [
-    "rubika",
-    "bot",
-    "fun"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
-    "express": "^5.3.0"
+    "express": "^4.21.0"
   }
 }

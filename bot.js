@@ -1,49 +1,29 @@
 import express from "express";
-import { TOKEN, API_BASE } from "./config.js";
-import { api, sendMessage } from "./utils/api.js";
+import { TOKEN, PORT } from "./config.js";
+import { api } from "./utils/api.js";
 import { showMainMenu, showLeaderboard } from "./handlers/menu.js";
 import { startTod, handleTodButton } from "./handlers/truthOrDare.js";
-import { startWyr, nextWyr } from "./handlers/wouldYouRather.js";
-import { startRps, handleRps } from "./handlers/rps.js";
 import {
   startGuessGame,
   handleGuessMessage,
-  giveHint,
   endGuessGame,
   isGuessActive
 } from "./handlers/guessWord.js";
-import { sendRandomJoke } from "./handlers/joke.js";
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
 const chatState = new Map();
 
-// ====================== پردازش دکمه‌ها ======================
 async function handleButton(chatId, buttonId, userId = "unknown", userName = "کاربر") {
   if (buttonId === "game_tod") {
     chatState.set(chatId, "tod");
     await startTod(chatId);
     return;
   }
-  if (buttonId === "game_wyr") {
-    chatState.set(chatId, "wyr");
-    await startWyr(chatId);
-    return;
-  }
-  if (buttonId === "game_rps") {
-    chatState.set(chatId, "rps");
-    await startRps(chatId);
-    return;
-  }
   if (buttonId === "game_guess") {
     chatState.set(chatId, "guess");
     await startGuessGame(chatId);
-    return;
-  }
-  if (buttonId === "game_joke") {
-    await sendRandomJoke(chatId);
     return;
   }
   if (buttonId === "leaderboard") {
@@ -60,80 +40,76 @@ async function handleButton(chatId, buttonId, userId = "unknown", userName = "ک
     await handleTodButton(chatId, buttonId);
     return;
   }
-  if (buttonId === "wyr_next") {
-    await nextWyr(chatId);
+
+  if (buttonId === "guess_new") {
+    await startGuessGame(chatId);
     return;
   }
-  if (buttonId.startsWith("rps_")) {
-    await handleRps(chatId, buttonId, userId, userName);
+  if (buttonId === "guess_end") {
+    await endGuessGame(chatId);
     return;
   }
-  if (buttonId === "guess_new") await startGuessGame(chatId);
-  if (buttonId === "guess_hint") await giveHint(chatId);
-  if (buttonId === "guess_end") await endGuessGame(chatId);
 }
 
-// ====================== پردازش پیام ======================
 async function processUpdate(update) {
-  if (!update) return;
+  if (!update || update.type !== "NewMessage") return;
 
-  // حالت عادی (NewMessage)
-  if (update.type === "NewMessage") {
-    const chatId = update.chat_id;
-    const msg = update.new_message;
-    if (!msg) return;
+  const chatId = update.chat_id;
+  const msg = update.new_message;
+  if (!msg) return;
 
-    const text = (msg.text || "").trim();
-    const userId = msg.sender_id || "unknown";
-    const buttonId = msg.aux_data?.button_id;
+  // فقط در گروه جواب بده (پیوی نادیده گرفته می‌شود)
+  // chat_id گروه‌ها معمولاً با b0 یا g0 شروع می‌شود
+  if (!String(chatId).startsWith("b0") && !String(chatId).startsWith("g0")) {
+    return;
+  }
 
-    const lower = text.toLowerCase();
-    if (["/روبات", "/robot", "/menu", "/start", "روبات"].includes(lower)) {
-      chatState.set(chatId, "menu");
-      await showMainMenu(chatId);
-      return;
-    }
+  const text = (msg.text || "").trim();
+  const userId = msg.sender_id || "unknown";
+  const buttonId = msg.aux_data?.button_id;
 
-    if (buttonId) {
-      await handleButton(chatId, buttonId, userId, "کاربر");
-      return;
-    }
+  const lower = text.toLowerCase();
+  if (["/روبات", "/robot", "/menu", "/start", "روبات"].includes(lower)) {
+    await showMainMenu(chatId);
+    return;
+  }
 
-    // حدس کلمه
-    if (isGuessActive(chatId) && text) {
-      await handleGuessMessage(chatId, userId, "کاربر", text);
-    }
+  if (buttonId) {
+    await handleButton(chatId, buttonId, userId, "کاربر");
+    return;
+  }
+
+  if (isGuessActive(chatId) && text.length > 0) {
+    await handleGuessMessage(chatId, userId, "کاربر", text);
   }
 }
 
-// ====================== مسیرهای Webhook ======================
-
-// روبیکا برای پیام‌های عادی به این آدرس می‌فرسته
+// Webhook endpoints
 app.post("/receiveUpdate", async (req, res) => {
   try {
     const body = req.body;
-    // console.log("Update received:", JSON.stringify(body, null, 2));
-
     if (body.update) {
       await processUpdate(body.update);
     }
-
     res.status(200).send("OK");
   } catch (err) {
-    console.error("Error in /receiveUpdate:", err);
-    res.status(200).send("OK"); // همیشه ۲۰۰ برگردون
+    console.error("Error in /receiveUpdate:", err.message);
+    res.status(200).send("OK");
   }
 });
 
-// روبیکا برای کلیک روی دکمه‌های شیشه‌ای (Inline) به این آدرس می‌فرسته
 app.post("/receiveInlineMessage", async (req, res) => {
   try {
     const body = req.body;
-    // console.log("Inline received:", JSON.stringify(body, null, 2));
-
     if (body.inline_message) {
       const inline = body.inline_message;
       const chatId = inline.chat_id;
+
+      // فقط گروه
+      if (!String(chatId).startsWith("b0") && !String(chatId).startsWith("g0")) {
+        return res.status(200).send("OK");
+      }
+
       const buttonId = inline.aux_data?.button_id;
       const userId = inline.sender_id;
 
@@ -141,51 +117,18 @@ app.post("/receiveInlineMessage", async (req, res) => {
         await handleButton(chatId, buttonId, userId, "کاربر");
       }
     }
-
     res.status(200).send("OK");
   } catch (err) {
-    console.error("Error in /receiveInlineMessage:", err);
+    console.error("Error in /receiveInlineMessage:", err.message);
     res.status(200).send("OK");
   }
 });
 
-// برای تست زنده بودن سرور
 app.get("/", (req, res) => {
-  res.send("Rubika Fun Bot is running ✅");
+  res.send("Rubika Fun Bot is running ✅ (Group only)");
 });
 
-// ====================== تنظیم Webhook ======================
-async function setWebhook(url) {
-  try {
-    // تنظیم endpoint برای پیام‌های عادی
-    await api("updateBotEndpoint", {
-      url: `${url}/receiveUpdate`,
-      type: "ReceiveUpdate"
-    });
-
-    // تنظیم endpoint برای دکمه‌های شیشه‌ای
-    await api("updateBotEndpoint", {
-      url: `${url}/receiveInlineMessage`,
-      type: "ReceiveInlineMessage"
-    });
-
-    console.log("✅ Webhook با موفقیت تنظیم شد");
-  } catch (err) {
-    console.error("خطا در تنظیم Webhook:", err.message);
-  }
-}
-
-// ====================== شروع سرور ======================
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`🚀 سرور روی پورت ${PORT} روشن شد`);
-
-  // اگر آدرس عمومی داری، اینجا تنظیمش کن
-  // مثال: https://your-app.onrender.com
-  const PUBLIC_URL = process.env.PUBLIC_URL || null;
-
-  if (PUBLIC_URL) {
-    await setWebhook(PUBLIC_URL);
-  } else {
-    console.log("⚠️  PUBLIC_URL تنظیم نشده. Webhook را دستی تنظیم کنید.");
-  }
+  console.log(`📌 فقط داخل گروه کار می‌کند`);
 });
