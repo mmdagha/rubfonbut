@@ -14,6 +14,33 @@ const app = express();
 app.use(express.json());
 
 const chatState = new Map();
+const chatTypeCache = new Map();
+
+async function isGroupChat(chatId) {
+  if (chatTypeCache.has(chatId)) {
+    return chatTypeCache.get(chatId);
+  }
+
+  try {
+    const res = await api("getChat", { chat_id: chatId });
+
+    const chat = res?.data?.chat || res?.chat || res?.data || {};
+    const chatType = chat.chat_type || chat.type || "";
+
+    let isGroup = chatType === "Group" || chatType === "Channel";
+
+    if (!chatType) {
+      const id = String(chatId);
+      isGroup = id.startsWith("b0") || id.startsWith("g0") || id.startsWith("c0");
+    }
+
+    chatTypeCache.set(chatId, isGroup);
+    return isGroup;
+  } catch (err) {
+    console.error("خطا در getChat:", err.message);
+    return true;
+  }
+}
 
 async function handleButton(chatId, buttonId, userId = "unknown", userName = "کاربر") {
   if (buttonId === "game_tod") {
@@ -58,9 +85,9 @@ async function processUpdate(update) {
   const msg = update.new_message;
   if (!msg) return;
 
-  // فقط در گروه جواب بده (پیوی نادیده گرفته می‌شود)
-  // chat_id گروه‌ها معمولاً با b0 یا g0 شروع می‌شود
-  if (!String(chatId).startsWith("b0") && !String(chatId).startsWith("g0")) {
+  const group = await isGroupChat(chatId);
+  if (!group) {
+    console.log("پیام از پیوی نادیده گرفته شد →", chatId);
     return;
   }
 
@@ -84,7 +111,6 @@ async function processUpdate(update) {
   }
 }
 
-// Webhook endpoints
 app.post("/receiveUpdate", async (req, res) => {
   try {
     const body = req.body;
@@ -105,8 +131,8 @@ app.post("/receiveInlineMessage", async (req, res) => {
       const inline = body.inline_message;
       const chatId = inline.chat_id;
 
-      // فقط گروه
-      if (!String(chatId).startsWith("b0") && !String(chatId).startsWith("g0")) {
+      const group = await isGroupChat(chatId);
+      if (!group) {
         return res.status(200).send("OK");
       }
 
